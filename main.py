@@ -2,17 +2,34 @@ from selenium import webdriver
 from src.pages.conversations import ConversationsPage
 from selenium.webdriver.chrome.options import Options
 from termcolor import colored
-import time, csv, pickle, sys, os
+import time, csv, sys, os
 import schedule
 
 URL = "https://messages.google.com/web/conversations"
 FILE_PATH = "./sims.csv"
-BROWSER_PROFILE_PATH = os.path.abspath("./custom_profile")
+BROWSER_CHROME_PROFILE_PATH = os.path.abspath("./custom_profile_chrome")
+BROWSER_EDGE_PROFILE_PATH = os.path.abspath("./custom_profile_edge")
 DEFAULT_COMMAND = "(o2w,4,0100)"
 DEFAULT_RETRIES = 3
 MAX_RUN_COUNT = 10
 CHUNK_SIZE = 50
+
 run_count = 0
+
+def is_chrome_installed():
+    paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.getenv('LOCALAPPDATA') +r"\Google\Chrome\Application\chrome.exe"
+    ]
+    return any(os.path.isfile(path) for path in paths)
+
+def is_edge_installed():
+    paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    return any(os.path.isfile(path) for path in paths)
 
 def get_text_command():
     if len(sys.argv) > 1:
@@ -48,14 +65,19 @@ def get_csv_rows():
         filtered_rows = [row for row in reader if len(row) > 0]
         rows = list(reader)
         return filtered_rows
-def init_browser() ->webdriver.Chrome:
+def init_browser() -> webdriver.Chrome:
     options = Options()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    options.add_argument(f"user-data-dir={BROWSER_PROFILE_PATH}")
-
     print(colored("--- starting test case ---","blue"))
-    driver = webdriver.Chrome(options=options)
+    if is_chrome_installed():
+        options.add_argument(f"user-data-dir={BROWSER_CHROME_PROFILE_PATH}")
+        driver = webdriver.Chrome(options=options)
+    elif is_edge_installed():
+        options.add_argument(f"user-data-dir={BROWSER_EDGE_PROFILE_PATH}")
+        driver = webdriver.Edge(options=options)
+    else:
+        raise FileNotFoundError("Could not find Chrome or Edge browsers installed on your system.")
     driver.set_window_size(1920,1080)
     driver.set_page_load_timeout(120)
     driver.set_script_timeout(120)
@@ -136,3 +158,5 @@ schedule.every(45).minutes.do(run_sms_sender)
 while True:
     schedule.run_pending()
     time.sleep(3)
+# print(is_chrome_installed())
+# print(is_edge_installed())
